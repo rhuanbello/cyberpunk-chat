@@ -4,6 +4,8 @@
   "main": "index.js",
   "license": "MIT",
   "dependencies": {
+    "@material-ui/core": "^4.12.3",
+    "@material-ui/icons": "^4.11.2",
     "@skynexui/components": "^1.23.8",
     "next": "^12.0.8",
     "react": "^17.0.2",
