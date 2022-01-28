@@ -70,7 +70,6 @@ export default function PaginaInicial() {
             border: '1px solid rgba( 255, 255, 255, 0.18 )',
           }}
         >
-          {/* Formulário */}
           <Box
             as="form"
             onSubmit={(e) => {
@@ -127,9 +126,7 @@ export default function PaginaInicial() {
               </Box>
             )}
           </Box>
-          {/* Formulário */}
 
-          {/* Photo Area */}
           <Box
             styleSheet={{
               display: 'flex',
@@ -170,7 +167,6 @@ export default function PaginaInicial() {
               </>
             )}
           </Box>
-          {/* Photo Area */}
         </Box>
       </Box>
     </>

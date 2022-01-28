@@ -1,21 +1,67 @@
 import { Box, Text, TextField, Image, Button } from '@skynexui/components';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import appConfig from '../config.json';
 import DeleteIcon from '@material-ui/icons/Delete'
 import { IconButton, sendIcon } from '@material-ui/core';
+import { createClient } from '@supabase/supabase-js';
+import { api, supApi } from '../api.js'
 
 export default function ChatPage() {
   const [mensagem, setMensagem] = useState('');
   const [mensagens, setMensagens] = useState([])
 
+  const supabaseClient = createClient(
+    'https://pjcddalbuqnotirmwpej.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlhdCI6MTY0MzMyODE1MywiZXhwIjoxOTU4OTA0MTUzfQ.p0NvOU5LN1m1Ii44sFzaZNqfsMe6XVpk5WFkg0n0YY0'
+  )
+
+  const getGithubData = () => {
+    api.get('rhuanbello')
+      .then((response) => {
+        console.log(response.data)
+      })
+      .catch((error) => {
+        console.log(error)
+      })
+  }
+
+  const getSupabaseData = () => {
+    // supApi.get('mensagens?select=*')
+    //    .then((response) => {
+    //       console.log(response.data)
+    //    })
+    //    .catch((error) => {
+    //      console.log('getSupabaseData', error)
+    //    })
+
+    supabaseClient
+      .from('mensagens')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        setMensagens(data)
+      })
+  }
+
+  useEffect(() => {
+    getSupabaseData()
+  }, [mensagens])
+
   const handleEnterMessage = () => {
     if (mensagem) {
-      setMensagens((mensagens) => [{
-        from: 'rhuanbello',
-        message: mensagem,
-        id: mensagens.length + 1
-      }, ...mensagens])
-      setMensagem('');
+      supabaseClient
+        .from('mensagens')
+        .insert(
+          [
+            {
+              name: 'rhuanbello',
+              message: mensagem
+            }
+          ]
+        )
+        .then(() => {
+          setMensagem('');
+        })
     }
   }
 
@@ -56,8 +102,8 @@ export default function ChatPage() {
             padding: '16px',
           }}
         >
-          <MessageList 
-            mensagens={mensagens} 
+          <MessageList
+            mensagens={mensagens}
             setMensagens={setMensagens}
           />
           <Box
@@ -101,12 +147,12 @@ export default function ChatPage() {
               styleSheet={{
                 height: '48px',
                 marginBottom: '8px',
-                backgroundColor: !mensagem ? appConfig.theme.colors.neutrals[800] : appConfig.theme.colors.primary[600],              
+                backgroundColor: !mensagem ? appConfig.theme.colors.neutrals[800] : appConfig.theme.colors.primary[600],
               }}
               onClick={() => handleEnterMessage()}
             />
           </Box>
-          
+
         </Box>
       </Box>
     </Box>
@@ -131,9 +177,22 @@ function Header() {
   )
 }
 
-function MessageList({ mensagens, setMensagens }) {
-  const handleDeleteMessage = (id) => {
-    setMensagens([...mensagens].filter(mensagem => mensagem.id !== id))
+function MessageList({ mensagens }) {
+  const supabaseClient = createClient(
+    'https://pjcddalbuqnotirmwpej.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlhdCI6MTY0MzMyODE1MywiZXhwIjoxOTU4OTA0MTUzfQ.p0NvOU5LN1m1Ii44sFzaZNqfsMe6XVpk5WFkg0n0YY0'
+  )
+
+  const handleDeleteMessage = (mensagem) => {
+    if (mensagem.name === 'rhuanbello') {
+      supabaseClient
+        .from('mensagens')
+        .delete()
+        .match({ id: mensagem.id })
+        .then((response) => {
+          console.log('resposta', response)
+        })
+    }
   }
 
   return (
@@ -178,33 +237,37 @@ function MessageList({ mensagens, setMensagens }) {
                 display: 'inline-block',
                 marginRight: '8px',
               }}
-              src={`https://github.com/vanessametonini.png`}
+              src={`https://github.com/${mensagem.name}.png`}
             />
             <Text tag="strong">
-              From {mensagem.from}
+              From {mensagem.name}
             </Text>
             <Text
               styleSheet={{
-                fontSize: '10px',
+                fontSize: '12px',
                 marginLeft: '8px',
-                color: appConfig.theme.colors.neutrals[300],
+                color: appConfig.theme.colors.neutrals[100],
               }}
               tag="span"
             >
-              {(new Date().toLocaleDateString())}
+              {(new Date(mensagem.created_at)
+                .toLocaleTimeString('pt-BR', {
+                  timezone: 'America/Sao_Paulo'
+                }
+                ))}
             </Text>
-            
+
             <Box
               styleSheet={{
                 marginLeft: 'auto'
               }}
             >
-              <IconButton 
+              <IconButton
                 onClick={() => {
-                  handleDeleteMessage(mensagem.id)
-              }}
+                  handleDeleteMessage(mensagem)
+                }}
               >
-                <DeleteIcon color="secondary"/>
+                <DeleteIcon color="secondary" />
               </IconButton>
             </Box>
           </Box>
