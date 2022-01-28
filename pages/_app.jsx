@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 function GlobalStyle() {
   return (
     <style global jsx>{`
@@ -29,10 +31,16 @@ function GlobalStyle() {
 }
 
 export default function MyApp({ Component, pageProps }) {
+  const [username, setUsername] = useState('');
+
   return (
     <>
       <GlobalStyle />
-      <Component {...pageProps}/>
+      <Component 
+        setUsername={setUsername}
+        username={username}
+        {...pageProps}
+      />
     </>
   )
 }

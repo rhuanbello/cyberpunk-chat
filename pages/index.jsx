@@ -28,8 +28,7 @@ function Titulo(props) {
 
 }
 
-export default function PaginaInicial() {
-  const [username, setUsername] = useState('');
+export default function PaginaInicial({ username, setUsername }) {
   const [warning, setWarning] = useState(false);
   const route = useRouter();
 

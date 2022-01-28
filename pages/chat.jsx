@@ -4,26 +4,55 @@ import appConfig from '../config.json';
 import DeleteIcon from '@material-ui/icons/Delete'
 import { IconButton, sendIcon } from '@material-ui/core';
 import { createClient } from '@supabase/supabase-js';
-import { api, supApi } from '../api.js'
+import { api } from '../api.js'
+import Modal from '@mui/material/Modal';
 
-export default function ChatPage() {
+export default function ChatPage({ username }) {
   const [mensagem, setMensagem] = useState('');
-  const [mensagens, setMensagens] = useState([])
+  const [mensagens, setMensagens] = useState([]);
+  const [openModal, setOpenModal] = useState(false);
+  const [githubData, setGithubData] = useState({})
 
   const supabaseClient = createClient(
     'https://pjcddalbuqnotirmwpej.supabase.co',
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlhdCI6MTY0MzMyODE1MywiZXhwIjoxOTU4OTA0MTUzfQ.p0NvOU5LN1m1Ii44sFzaZNqfsMe6XVpk5WFkg0n0YY0'
   )
 
-  const getGithubData = () => {
-    api.get('rhuanbello')
-      .then((response) => {
-        console.log(response.data)
+  const getGithubData = (name) => {
+    api.get(name)
+      .then(({ data }) => {
+        const { name, location, url, followers, bio, login} = data;
+        const tempGithubData = {
+          photo: `https://github.com/${login}.png`,
+          name: name,
+          location: location,
+          url: url,
+          followers: followers,
+          bio: bio
+        }
+        getGithubRepos(login, tempGithubData);
       })
       .catch((error) => {
         console.log(error)
       })
   }
+
+  const getGithubRepos = (login, tempGithubData) => {
+    api.get(login + '/repos')
+      .then(({ data }) => {
+        setGithubData({
+          ...tempGithubData,
+          repos: data
+        })
+      })
+      .catch((error) => {
+        console.log(error)
+      })
+  }
+
+  useEffect(() => {
+    console.log('GithubData', githubData)
+  }, [githubData])
 
   const getSupabaseData = () => {
     // supApi.get('mensagens?select=*')
@@ -43,6 +72,10 @@ export default function ChatPage() {
       })
   }
 
+  const handleCloseModal = () => {
+    setOpenModal(false)
+  }
+
   useEffect(() => {
     getSupabaseData()
   }, [mensagens])
@@ -54,7 +87,7 @@ export default function ChatPage() {
         .insert(
           [
             {
-              name: 'rhuanbello',
+              name: username,
               message: mensagem
             }
           ]
@@ -105,6 +138,9 @@ export default function ChatPage() {
           <MessageList
             mensagens={mensagens}
             setMensagens={setMensagens}
+            setOpenModal={setOpenModal}
+            getGithubData={getGithubData}
+            username={username}
           />
           <Box
             as="form"
@@ -155,6 +191,14 @@ export default function ChatPage() {
 
         </Box>
       </Box>
+      <Modal
+        open={openModal}
+        onClose={handleCloseModal}
+      >
+        <Box>
+          <h1>oi</h1>
+        </Box>
+      </Modal>
     </Box>
   )
 }
@@ -177,14 +221,20 @@ function Header() {
   )
 }
 
-function MessageList({ mensagens }) {
+function MessageList({ 
+  mensagens, 
+  setOpenModal,
+  getGithubData,
+  username
+}) {
+
   const supabaseClient = createClient(
     'https://pjcddalbuqnotirmwpej.supabase.co',
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlhdCI6MTY0MzMyODE1MywiZXhwIjoxOTU4OTA0MTUzfQ.p0NvOU5LN1m1Ii44sFzaZNqfsMe6XVpk5WFkg0n0YY0'
   )
 
   const handleDeleteMessage = (mensagem) => {
-    if (mensagem.name === 'rhuanbello') {
+    if (mensagem.name === username) {
       supabaseClient
         .from('mensagens')
         .delete()
@@ -192,6 +242,8 @@ function MessageList({ mensagens }) {
         .then((response) => {
           console.log('resposta', response)
         })
+    } else {
+      // não pode apagar mensagem que não é de seu usuário
     }
   }
 
@@ -236,8 +288,13 @@ function MessageList({ mensagens }) {
                 borderRadius: '50%',
                 display: 'inline-block',
                 marginRight: '8px',
+                cursor: 'pointer'
               }}
               src={`https://github.com/${mensagem.name}.png`}
+              onClick={() => {
+                setOpenModal(true)
+                getGithubData(mensagem.name)
+              }}
             />
             <Text tag="strong">
               From {mensagem.name}
