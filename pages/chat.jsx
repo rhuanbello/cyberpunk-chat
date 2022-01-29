@@ -6,6 +6,7 @@ import { IconButton, sendIcon } from '@material-ui/core';
 import { createClient } from '@supabase/supabase-js';
 import { api } from '../api.js'
 import Modal from '@mui/material/Modal';
+import { useRouter } from 'next/router';
 
 export default function ChatPage({ username }) {
   const [mensagem, setMensagem] = useState('');
@@ -21,7 +22,7 @@ export default function ChatPage({ username }) {
   const getGithubData = (name) => {
     api.get(name)
       .then(({ data }) => {
-        const { name, location, url, followers, bio, login} = data;
+        const { name, location, url, followers, bio, login } = data;
         const tempGithubData = {
           photo: `https://github.com/${login}.png`,
           name: name,
@@ -54,15 +55,12 @@ export default function ChatPage({ username }) {
     console.log('GithubData', githubData)
   }, [githubData])
 
-  const getSupabaseData = () => {
-    // supApi.get('mensagens?select=*')
-    //    .then((response) => {
-    //       console.log(response.data)
-    //    })
-    //    .catch((error) => {
-    //      console.log('getSupabaseData', error)
-    //    })
 
+  const handleCloseModal = () => {
+    setOpenModal(false)
+  }
+
+  const getSupabaseData = () => {
     supabaseClient
       .from('mensagens')
       .select('*')
@@ -70,10 +68,6 @@ export default function ChatPage({ username }) {
       .then(({ data }) => {
         setMensagens(data)
       })
-  }
-
-  const handleCloseModal = () => {
-    setOpenModal(false)
   }
 
   useEffect(() => {
@@ -221,8 +215,8 @@ function Header() {
   )
 }
 
-function MessageList({ 
-  mensagens, 
+function MessageList({
+  mensagens,
   setOpenModal,
   getGithubData,
   username
@@ -247,6 +241,10 @@ function MessageList({
     }
   }
 
+  const dataAtual = new Date().toLocaleDateString('pt-BR', {
+    timezone: 'America/Sao_Paulo'
+  })
+
   return (
     <Box
       tag="ul"
@@ -256,6 +254,7 @@ function MessageList({
         flex: 1,
         color: appConfig.theme.colors.neutrals["000"],
         marginBottom: '16px',
+        overflowY: 'scroll'
       }}
     >
 
@@ -307,11 +306,19 @@ function MessageList({
               }}
               tag="span"
             >
-              {(new Date(mensagem.created_at)
-                .toLocaleTimeString('pt-BR', {
-                  timezone: 'America/Sao_Paulo'
-                }
-                ))}
+              {
+                (new Date(mensagem.created_at)
+                  .toLocaleDateString('pt-BR', {
+                    timezone: 'America/Sao_Paulo'
+                  }
+                ) === dataAtual && 'Hoje às ' + new Date(mensagem.created_at)
+                  .toLocaleTimeString('pt-BR', {
+                    timezone: 'America/Sao_Paulo',
+                    timeStyle: 'short'
+                  }
+                  ))
+              }
+
             </Text>
 
             <Box
