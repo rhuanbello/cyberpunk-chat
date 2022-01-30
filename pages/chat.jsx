@@ -2,10 +2,13 @@ import { Box, Text, TextField, Image, Button } from '@skynexui/components';
 import React, { useEffect, useState } from 'react';
 import appConfig from '../config.json';
 import DeleteIcon from '@material-ui/icons/Delete'
+import CloseIcon from '@material-ui/icons/Close'
+import LocationOn from '@material-ui/icons/LocationOn'
 import { IconButton, sendIcon } from '@material-ui/core';
 import { createClient } from '@supabase/supabase-js';
 import { api } from '../api.js'
 import Modal from '@mui/material/Modal';
+import { ButtonSendSticker } from '../src/components/ButtonSendSticker';
 import { useRouter } from 'next/router';
 
 export default function ChatPage({ username }) {
@@ -13,6 +16,7 @@ export default function ChatPage({ username }) {
   const [mensagens, setMensagens] = useState([]);
   const [openModal, setOpenModal] = useState(false);
   const [githubData, setGithubData] = useState({})
+  const route = useRouter();
 
   const supabaseClient = createClient(
     'https://pjcddalbuqnotirmwpej.supabase.co',
@@ -22,14 +26,16 @@ export default function ChatPage({ username }) {
   const getGithubData = (name) => {
     api.get(name)
       .then(({ data }) => {
-        const { name, location, url, followers, bio, login } = data;
+        console.log('All Data', data)
+        const { name, location, url, followers, bio, login, company } = data;
         const tempGithubData = {
           photo: `https://github.com/${login}.png`,
           name: name,
           location: location,
           url: url,
           followers: followers,
-          bio: bio
+          bio: bio,
+          company: company
         }
         getGithubRepos(login, tempGithubData);
       })
@@ -51,30 +57,29 @@ export default function ChatPage({ username }) {
       })
   }
 
-  useEffect(() => {
-    console.log('GithubData', githubData)
-  }, [githubData])
-
-
   const handleCloseModal = () => {
     setOpenModal(false)
   }
 
-  const getSupabaseData = () => {
+  const handleRealTimeMessages = () => {
     supabaseClient
       .from('mensagens')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        setMensagens(data)
+      .on('INSERT', (response) => {
+        setMensagens(oldMessage => [response.new, ...oldMessage])
       })
+      .subscribe();
   }
 
-  useEffect(() => {
-    getSupabaseData()
-  }, [mensagens])
+  const handleDeleteMessages = () => {
+    supabaseClient
+      .from('mensagens')
+      .on('DELETE', (response) => {
+        console.log('deletou', response)
+      })
+      .subscribe();
+  }
 
-  const handleEnterMessage = () => {
+  const insertMessage = () => {
     if (mensagem) {
       supabaseClient
         .from('mensagens')
@@ -92,12 +97,42 @@ export default function ChatPage({ username }) {
     }
   }
 
+  const selectMessages = () => {
+    supabaseClient
+      .from('mensagens')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        setMensagens(data)
+      })
+  }
+
+  useEffect(() => {
+    console.log('GithubData', githubData)
+  }, [githubData])
+
+  useEffect(() => {
+    insertMessage()
+  }, [mensagem.includes('.gif')])
+
+  useEffect(() => {
+    selectMessages();
+    handleRealTimeMessages();
+  }, [])
+
+  useEffect(() => {
+    if (!username) {
+      route.push('/')
+    }
+  }, [])
+
   return (
     <Box
       styleSheet={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        backgroundColor: appConfig.theme.colors.primary[500],
-        backgroundImage: `url(https://images.unsplash.com/photo-1625632019469-108132f8fc60?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80)`,
+        // backgroundColor: appConfig.theme.colors.primary[500],
+        // backgroundImage: `url(https://images.unsplash.com/photo-1625632019469-108132f8fc60?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80)`,
+        backgroundColor: '#000',
         backgroundRepeat: 'no-repeat', backgroundSize: 'cover', backgroundBlendMode: 'multiply',
         color: appConfig.theme.colors.neutrals['000']
       }}
@@ -111,8 +146,8 @@ export default function ChatPage({ username }) {
           borderRadius: '5px',
           backgroundColor: appConfig.theme.colors.neutrals[700],
           height: '100%',
-          maxWidth: '95%',
-          maxHeight: '95vh',
+          maxWidth: '50%',
+          maxHeight: '85vh',
           padding: '32px',
         }}
       >
@@ -135,6 +170,7 @@ export default function ChatPage({ username }) {
             setOpenModal={setOpenModal}
             getGithubData={getGithubData}
             username={username}
+            handleDeleteMessages={handleDeleteMessages}
           />
           <Box
             as="form"
@@ -156,7 +192,7 @@ export default function ChatPage({ username }) {
               onKeyPress={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
-                  handleEnterMessage()
+                  insertMessage()
                 }
               }}
               type="textarea"
@@ -177,22 +213,27 @@ export default function ChatPage({ username }) {
               styleSheet={{
                 height: '48px',
                 marginBottom: '8px',
+                marginRight: '8px',
                 backgroundColor: !mensagem ? appConfig.theme.colors.neutrals[800] : appConfig.theme.colors.primary[600],
               }}
-              onClick={() => handleEnterMessage()}
+              onClick={() => insertMessage()}
             />
+
+            <ButtonSendSticker
+              setMensagem={setMensagem}
+              insertMessage={insertMessage}
+            />
+
           </Box>
 
         </Box>
       </Box>
-      <Modal
-        open={openModal}
-        onClose={handleCloseModal}
-      >
-        <Box>
-          <h1>oi</h1>
-        </Box>
-      </Modal>
+      <GitHubModal 
+        openModal={openModal}
+        setOpenModal={setOpenModal}
+        handleCloseModal={handleCloseModal}
+        githubData={githubData}
+      />
     </Box>
   )
 }
@@ -219,7 +260,8 @@ function MessageList({
   mensagens,
   setOpenModal,
   getGithubData,
-  username
+  username,
+  handleDeleteMessages
 }) {
 
   const supabaseClient = createClient(
@@ -233,17 +275,62 @@ function MessageList({
         .from('mensagens')
         .delete()
         .match({ id: mensagem.id })
-        .then((response) => {
-          console.log('resposta', response)
-        })
     } else {
-      // não pode apagar mensagem que não é de seu usuário
+      // não pode a pagar mensagem que não é de seu usuário
     }
   }
 
-  const dataAtual = new Date().toLocaleDateString('pt-BR', {
-    timezone: 'America/Sao_Paulo'
-  })
+
+  const handleMessageDate = (created_at) => {
+    const dateOptions = {
+      dataHoje: new Date().toLocaleDateString('pt-BR', {
+        timezone: 'America/Sao_Paulo'
+      }),
+      dataOntem: new Date(new Date().setDate(new Date().getDate() - 1))
+        .toLocaleDateString('pt-BR', {
+          timezone: 'America/Sao_Paulo'
+      }),
+      dataMensagem: new Date(created_at)
+        .toLocaleDateString('pt-BR', {
+          timezone: 'America/Sao_Paulo'
+      }),
+      dataMensagemCurta: new Date(created_at)
+        .toLocaleDateString('pt-BR', {
+          timezone: 'America/Sao_Paulo',
+          day: 'numeric',
+          month: '2-digit'
+      }),
+      horaMensagem: new Date(created_at)
+        .toLocaleTimeString('pt-BR', {
+          timezone: 'America/Sao_Paulo',
+          timeStyle: 'short'
+      }),
+    }
+
+    const { dataHoje, dataOntem, dataMensagem, dataMensagemCurta, horaMensagem} = dateOptions
+
+    return (
+      (dataMensagem === dataHoje && 'Hoje às ' + horaMensagem) || 
+      (dataMensagem === dataOntem && 'Ontem às ' + horaMensagem) ||
+      (dataMensagemCurta + ' às ' + horaMensagem)
+    )
+
+  }
+
+  const handleMessageType = (mensagem) => {
+    return (
+      mensagem.includes('http')
+        ? (
+          <Image src={mensagem}
+            styleSheet={{
+              maxWidth: '30%',
+            }}
+          />
+        ) : (
+          mensagem
+        )
+    )
+  }
 
   return (
     <Box
@@ -306,21 +393,8 @@ function MessageList({
               }}
               tag="span"
             >
-              {
-                (new Date(mensagem.created_at)
-                  .toLocaleDateString('pt-BR', {
-                    timezone: 'America/Sao_Paulo'
-                  }
-                ) === dataAtual && 'Hoje às ' + new Date(mensagem.created_at)
-                  .toLocaleTimeString('pt-BR', {
-                    timezone: 'America/Sao_Paulo',
-                    timeStyle: 'short'
-                  }
-                  ))
-              }
-
+              {handleMessageDate(mensagem.created_at)}
             </Text>
-
             <Box
               styleSheet={{
                 marginLeft: 'auto'
@@ -335,11 +409,238 @@ function MessageList({
               </IconButton>
             </Box>
           </Box>
-          {mensagem.message}
+          {handleMessageType(mensagem.message)}
         </Text>
 
       ))}
 
     </Box>
   )
+}
+
+function GitHubModal({ openModal, setOpenModal, handleCloseModal, githubData }) {
+
+  console.log('Chegou no modal', githubData)
+
+  const { bio, company, followers, location, name, photo, repos, url } = githubData;
+
+  return (
+    <Modal
+      open={openModal}
+      onClose={handleCloseModal}
+    > 
+      <Box styleSheet={{
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}>
+
+      <Box 
+        styleSheet={{ 
+          width: '30vw', 
+          height: '50vh', 
+          backgroundColor: appConfig.theme.colors.neutrals[800],
+          border: '1px solid #FFF',
+          position: 'relative',
+          overflowY: 'scroll',
+
+        }}>
+
+        <Box as="header"
+          styleSheet={{
+            padding: '30px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '30px',
+            height: '20vh'
+          }}
+        >
+          <Image 
+            src={photo}
+            styleSheet={{
+              maxHeight: '100%',
+              borderRadius: '50%'
+            }}
+          />
+
+          <Box 
+            styleSheet={{
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              height: '100%'
+            }}
+          >
+
+            <Text
+              styleSheet={{ color: '#FFF', fontWeight: 'bold'}}
+            >
+              {company ? (name + ' - ' + company) : (name)}
+            </Text>
+
+            <Box
+              styleSheet={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                marginLeft: '-5px'
+              }}
+            >
+              <LocationOn color="primary" />
+              <Text
+                styleSheet={{ color: '#FFF'}}
+              >
+                {location}
+              </Text>
+            </Box>
+            <Text
+              styleSheet={{
+                color: '#FFF'
+              }}
+            >
+              {bio}
+            </Text>
+
+          </Box>
+          <Box
+            styleSheet={{
+              position: 'absolute',
+              top: '5px',
+              right: '0',
+            }}
+          >
+            <IconButton
+              onClick={handleCloseModal}
+            >
+              <CloseIcon color="secondary" />
+            </IconButton>
+          </Box>
+        </Box>
+
+        <Box 
+        styleSheet={{
+          display: 'flex',
+          marginBottom: '10px',
+          justifyContent: 'space-evenly'
+        }}>
+            <Box as="a" href="" target="_blank"
+              styleSheet={{
+                textDecoration: 'none',
+                color: '#FFF',
+                backgroundColor: appConfig.theme.colors.neutrals[700],
+                padding: '5px',
+                display: 'inline-block',
+                borderRadius: '10px',
+                fontSize: '14px',
+                width: '30%',
+                display: 'grid',
+                placeItems: 'center',
+                cursor: 'default'
+              }}
+            >{followers + ' ' + 'Seguidores'}</Box>
+          <Box as="a" href={url} target="_blank"
+              styleSheet={{
+                textDecoration: 'none',
+                color: '#FFF',
+                backgroundColor: appConfig.theme.colors.neutrals[700],
+                padding: '5px',
+                display: 'inline-block',
+                borderRadius: '10px',
+                fontSize: '14px',
+                width: '30%',
+                display: 'grid',
+                placeItems: 'center',
+              }}
+          >Acessar Repositório</Box>
+
+        </Box>
+
+        <Box as="hr" color={appConfig.theme.colors.neutrals[900]}
+        ></Box>
+        <Box as="main"
+          styleSheet={{
+            padding: '15px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '15px',
+
+          }}
+        >
+          <Text
+            styleSheet={{
+              color: "#FFF",
+              fontSize: '18px',
+              alignSelf: 'center'
+            }}
+          >
+            Projetos
+          </Text>
+
+          <Box as="section" styleSheet={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr 1fr',
+            gap: '10px',
+            
+          }}>
+
+            {repos?.map(project => (
+
+              <Box 
+                styleSheet={{
+                display: 'flex',
+                flexDirection: 'column',
+                padding: '20px',
+                justifyContent: 'center',
+                gap: '10px',
+                color: '#FFF',
+                backgroundColor: appConfig.theme.colors.neutrals[900],
+                borderRadius: '10px'
+              }}>
+                <Text
+                  styleSheet={{
+                    fontWeight: 'bold',
+                    textAlign: 'center',
+                  }}
+                >
+                  {project.name}</Text>
+                <Text
+                  styleSheet={{
+                    fontSize: '12px',
+                    textAlign: 'center'
+                  }}
+                >{new Date(project.pushed_at).toLocaleDateString('pt-BR', {
+                  timezone: 'America/Sao_Paulo'
+                })}</Text>
+                <Box as="a" href={project.url} target="_blank"
+                  styleSheet={{
+                    textDecoration: 'none',
+                    color: '#FFF',
+                    backgroundColor: appConfig.theme.colors.neutrals[700],
+                    padding: '5px',
+                    display: 'inline-block',
+                    borderRadius: '10px',
+                    fontSize: '14px',
+                    width: '70%',
+                    display: 'grid',
+                    placeItems: 'center',
+                    margin: '0 auto'
+                  }}
+                >Link</Box>
+
+              </Box>
+
+            ))}
+
+          </Box>
+
+
+        </Box>
+      </Box>
+
+      </Box>
+    </Modal>
+  )
+
 }
